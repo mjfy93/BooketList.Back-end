@@ -1,11 +1,14 @@
-from flask import Flask
+import os
+from dotenv import load_dotenv
 
-app = Flask(__name__)
+# Cargar .env
+load_dotenv()
 
-@app.route('/')
-def home():
-    return 'Hello, World!'
+print("📁 Directorio actual:", os.getcwd())
+print("🔍 Verificando variables...")
+print(f"   SECRET_KEY: {os.getenv('SECRET_KEY', '❌ No encontrada')}")
+print(f"   DATABASE_URL: {os.getenv('DATABASE_URL', '❌ No encontrada')}")
 
-@app.route('/about')
-def about():
-    return 'About'
+from app import create_app
+
+app = create_app()

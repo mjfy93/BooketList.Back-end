@@ -1,0 +1,28 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+flask = "*"
+flask-cors = "*"
+colorama = "*"
+flask-sqlalchemy = "*"
+flask-migrate = "*"
+flask-jwt-extended = "*"
+python-dotenv = "*"
+
+[dev-packages]
+pytest = "*"
+faker = "*"
+
+[requires]
+python_version = "3.13"
+
+[scripts]
+dev = "flask run"
+seed = "python -m app.seed"
+db-init = "flask db init"
+db-migrate = "flask db migrate"
+db-upgrade = "flask db upgrade"
+db-downgrade = "flask db downgrade"
