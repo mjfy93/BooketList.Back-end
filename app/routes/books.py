@@ -232,8 +232,8 @@ def get_authors():
     try:
        
         authors = Author.query.order_by(
-            Author.apellido_autor.asc(), 
-            Author.nombre_autor.asc()
+            Author.nombre_autor.asc(),
+            Author.apellido_autor.asc() 
         ).all()
         
         return jsonify([autor.serialize() for autor in authors]), 200
