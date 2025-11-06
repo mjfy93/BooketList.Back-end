@@ -8,8 +8,8 @@ class Rating(db.Model):
     __tablename__ = 'calificacion'
     
     id_calificacion: Mapped[int] = mapped_column(primary_key=True)
-    id_usuario: Mapped[int] = mapped_column(ForeignKey('usuarios.id_usuario'), nullable=False)  # ✅ 'usuarios'
-    id_libro: Mapped[int] = mapped_column(ForeignKey('libros.id_libros'), nullable=False)
+    id_usuario: Mapped[int] = mapped_column(ForeignKey('usuarios.id_usuario'), nullable=False)
+    id_libro: Mapped[int] = mapped_column(ForeignKey('libros.id_libro'), nullable=False)
     calificacion: Mapped[int] = mapped_column(Integer, nullable=False)
     resena: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -19,7 +19,6 @@ class Rating(db.Model):
         onupdate=datetime.utcnow
     )
     
-    # Relaciones
     usuario: Mapped["User"] = relationship(back_populates="calificaciones")
     libro: Mapped["Book"] = relationship(back_populates="calificaciones")
     

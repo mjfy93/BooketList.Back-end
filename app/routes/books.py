@@ -22,11 +22,11 @@ def get_book(book_id):
     try:
         libro = Book.query.get_or_404(book_id)
         return jsonify({
-            'id': libro.id_libros,
+            'id': libro.id_libro,
             'title': libro.titulo_libro,
             'author': f"{libro.autor.nombre_autor} {libro.autor.apellido_autor}",
             'genre': libro.genero_libro,
-            'description': libro.descripcion_libros,
+            'description': libro.descripcion_libro,
             'cover_url': libro.enlace_portada_libro,
             'amazon_asin': libro.enlace_asin_libro,
             'publication_date': libro.created_at.strftime('%Y-%m-%d') if libro.created_at else None
@@ -51,11 +51,11 @@ def get_books_by_genre(genre):
         books = Book.query.filter_by(genero_libro=genre_normalized).all()
 
         return jsonify([{
-            'id': libro.id_libros,
+            'id': libro.id_libro,
             'title': libro.titulo_libro,
             'author': f"{libro.autor.nombre_autor} {libro.autor.apellido_autor}",
             'genre': libro.genero_libro,
-            'description': libro.descripcion_libros,
+            'description': libro.descripcion_libro,
             'cover_url': libro.enlace_portada_libro,
             'amazon_asin': libro.enlace_asin_libro
         } for libro in books]), 200
@@ -79,11 +79,11 @@ def search_books():
         ).all()
 
         return jsonify([{
-            'id': libro.id_libros,
+            'id': libro.id_libro,
             'title': libro.titulo_libro,
             'author': f"{libro.autor.nombre_autor} {libro.autor.apellido_autor}",
             'genre': libro.genero_libro,
-            'description': libro.descripcion_libros,
+            'description': libro.descripcion_libro,
             'cover_url': libro.enlace_portada_libro,
             'amazon_asin': libro.enlace_asin_libro
         } for libro in books]), 200
@@ -98,7 +98,7 @@ def get_genres_count():
         # Obtener conteo de libros por género
         genres_count = db.session.query(
             Book.genero_libro, 
-            func.count(Book.id_libros).label('count')
+            func.count(Book.id_libro).label('count')
         ).group_by(Book.genero_libro).all()
         
         return jsonify([{
@@ -115,12 +115,12 @@ def get_genres_stats():
         # Obtener estadísticas completas por género
         genres_stats = db.session.query(
             Book.genero_libro, 
-            func.count(Book.id_libros).label('total_books'),
+            func.count(Book.id_libro).label('total_books'),
             func.count(func.distinct(Book.id_autor)).label('unique_authors')
         ).group_by(Book.genero_libro).all()
         
         # Obtener total general
-        total_books = db.session.query(func.count(Book.id_libros)).scalar()
+        total_books = db.session.query(func.count(Book.id_libro)).scalar()
         total_genres = db.session.query(func.count(func.distinct(Book.genero_libro))).scalar()
         
         return jsonify({
@@ -184,10 +184,10 @@ def get_author_profile(author_id):
                 'total_generos': len(genres)
             },
             'books': [{
-                'id_libros': libro.id_libros,
+                'id_libro': libro.id_libro,
                 'titulo_libro': libro.titulo_libro,
                 'genero_libro': libro.genero_libro,
-                'descripcion_libros': libro.descripcion_libros,
+                'descripcion_libro': libro.descripcion_libro,
                 'enlace_portada_libro': libro.enlace_portada_libro,
                 'enlace_asin_libro': libro.enlace_asin_libro,
                 'created_at': libro.created_at.isoformat() if libro.created_at else None

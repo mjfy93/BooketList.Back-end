@@ -17,10 +17,10 @@ def get_user_profile():
             return not_found('Usuario no encontrado')
 
         user_profile = {
-            'user_id': usuario.id,
+            'user_id': usuario.id_usuario,
             'username': usuario.nombre_usuario,
             'last_name': usuario.apellido_usuario,
-            'email': usuario.correo_electronico,
+            'email': usuario.email_usuario,
             'join_date': usuario.created_at.strftime('%Y-%m-%d') if usuario.created_at else None,
             'last_update': usuario.updated_at.strftime('%Y-%m-%d') if usuario.updated_at else None
         }
@@ -41,12 +41,12 @@ def update_user_profile():
         if not usuario:
             return not_found('Usuario no encontrado')
 
-        # Actualizar campos permitidos
+        
         if 'username' in data:
-            # Verificar si el nombre de usuario ya existe (excluyendo el usuario actual)
+            
             existing_user = User.query.filter(
                 User.nombre_usuario == data['username'],
-                User.id != current_user_id
+                User.id_usuario != current_user_id
             ).first()
             if existing_user:
                 return conflict('El nombre de usuario ya está en uso')
@@ -56,14 +56,14 @@ def update_user_profile():
             usuario.apellido_usuario = data['last_name']
 
         if 'email' in data:
-            # Verificar si el email ya existe (excluyendo el usuario actual)
+            
             existing_email = User.query.filter(
-                User.correo_electronico == data['email'],
-                User.id != current_user_id
+                User.email_usuario == data['email'],
+                User.id_usuario != current_user_id
             ).first()
             if existing_email:
                 return conflict('El correo electrónico ya está en uso')
-            usuario.correo_electronico = data['email']
+            usuario.email_usuario = data['email']
 
         if 'password' in data and data['password']:
             usuario.set_password(data['password'])
@@ -73,10 +73,10 @@ def update_user_profile():
         return jsonify({
             'message': 'Perfil actualizado exitosamente',
             'profile': {
-                'user_id': usuario.id,
+                'user_id': usuario.id_usuario,
                 'username': usuario.nombre_usuario,
                 'last_name': usuario.apellido_usuario,
-                'email': usuario.correo_electronico
+                'email': usuario.email_usuario
             }
         }), 200
 

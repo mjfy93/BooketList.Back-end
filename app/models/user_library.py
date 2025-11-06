@@ -8,11 +8,10 @@ class UserLibrary(db.Model):
     __tablename__ = 'biblioteca_usuario'
     
     id_biblioteca: Mapped[int] = mapped_column(primary_key=True)
-    id_usuario: Mapped[int] = mapped_column(ForeignKey('usuarios.id_usuario'), nullable=False)  # ✅ 'usuarios'
-    id_libro: Mapped[int] = mapped_column(ForeignKey('libros.id_libros'), nullable=False)
+    id_usuario: Mapped[int] = mapped_column(ForeignKey('usuarios.id_usuario'), nullable=False)
+    id_libro: Mapped[int] = mapped_column(ForeignKey('libros.id_libro'), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     
-    # Relaciones
     usuario: Mapped["User"] = relationship(back_populates="biblioteca")
     libro: Mapped["Book"] = relationship(back_populates="biblioteca")
     

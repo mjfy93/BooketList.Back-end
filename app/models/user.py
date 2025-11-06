@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy import String, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
     __tablename__ = 'usuarios'  
@@ -20,9 +21,20 @@ class User(db.Model):
         onupdate=datetime.utcnow
     )
     
-    # Relaciones - Asegúrate que los nombres coincidan
     calificaciones: Mapped[List["Rating"]] = relationship(back_populates="usuario")
     biblioteca: Mapped[List["UserLibrary"]] = relationship(back_populates="usuario")
+    
+    def __init__(self, nombre_usuario: str, apellido_usuario: str, email_usuario: str, password_usuario: str):
+        self.nombre_usuario = nombre_usuario
+        self.apellido_usuario = apellido_usuario
+        self.email_usuario = email_usuario
+        self.password_usuario = generate_password_hash(password_usuario)
+    
+    def set_password(self, password: str) -> None:
+        self.password_usuario = generate_password_hash(password)
+    
+    def check_password(self, password: str) -> bool:
+        return check_password_hash(self.password_usuario, password)
     
     def serialize(self) -> Dict[str, Any]:
         return {
