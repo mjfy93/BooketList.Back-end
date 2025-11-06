@@ -29,8 +29,7 @@ def register():
             nombre_usuario=data['nombre_usuario'],
             apellido_usuario=data.get('apellido_usuario', ''),
             email_usuario=data['email_usuario'],
-            password_usuario=generate_password_hash(data['password_usuario']),
-            is_active=True
+            password_usuario=data['password_usuario']
         )
 
         db.session.add(usuario)

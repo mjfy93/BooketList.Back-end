@@ -1,6 +1,6 @@
 # routes/admin.py
 from flask import Blueprint, request, jsonify
-from app.models import User, Book, Author, Rating, UserLibrary
+from app.models import User, Book, Author, Rating, UserLibrary, Admin
 from app import db
 from app.errors import bad_request, not_found, internal_error, conflict, unauthorized
 from sqlalchemy import func, and_
@@ -171,18 +171,18 @@ def get_all_books():
         
         books = Book.query.all()
         return jsonify([{
-            'id_libros': libro.id_libros,
+            'id_libro': libro.id_libro,
             'titulo_libro': libro.titulo_libro,
             'autor': f"{libro.autor.nombre_autor} {libro.autor.apellido_autor}" if libro.autor else "Desconocido",
             'id_autor': libro.id_autor,
             'genero_libro': libro.genero_libro,
-            'descripcion_libros': libro.descripcion_libros,
+            'descripcion_libro': libro.descripcion_libro,
             'enlace_portada_libro': libro.enlace_portada_libro,
             'enlace_asin_libro': libro.enlace_asin_libro,
             'created_at': libro.created_at.isoformat() if libro.created_at else None,
             'total_resenas': len(libro.calificaciones),
             'rating_promedio': db.session.query(func.avg(Rating.calificacion)).filter(
-                Rating.id_libro == libro.id_libros
+                Rating.id_libro == libro.id_libro
             ).scalar() or 0
         } for libro in books]), 200
     
@@ -228,7 +228,7 @@ def create_book():
         
         data = request.get_json()
         
-        required_fields = ['titulo_libro', 'id_autor', 'genero_libro', 'descripcion_libros']
+        required_fields = ['titulo_libro', 'id_autor', 'genero_libro', 'descripcion_libro']
         for field in required_fields:
             if not data.get(field):
                 return bad_request(f'Campo {field} es requerido')
@@ -241,7 +241,7 @@ def create_book():
             titulo_libro=data['titulo_libro'],
             id_autor=data['id_autor'],
             genero_libro=data['genero_libro'],
-            descripcion_libros=data['descripcion_libros'],
+            descripcion_libro=data['descripcion_libro'],
             enlace_portada_libro=data.get('enlace_portada_libro', ''),
             enlace_asin_libro=data.get('enlace_asin_libro', '')
         )
@@ -269,7 +269,7 @@ def update_book(book_id):
         libro = Book.query.get_or_404(book_id)
         data = request.get_json()
         
-        updatable_fields = ['titulo_libro', 'id_autor', 'genero_libro', 'descripcion_libros', 
+        updatable_fields = ['titulo_libro', 'id_autor', 'genero_libro', 'descripcion_libro', 
                            'enlace_portada_libro', 'enlace_asin_libro']
         
         for field in updatable_fields:
@@ -441,13 +441,13 @@ def delete_author(author_id):
         
         for book in author_books:
             # Verificar si el libro tiene reseñas
-            has_reviews = Rating.query.filter_by(id_libro=book.id_libros).first()
+            has_reviews = Rating.query.filter_by(id_libro=book.id_libro).first()
             # Verificar si el libro está en bibliotecas de usuarios
-            in_libraries = UserLibrary.query.filter_by(id_libro=book.id_libros).first()
+            in_libraries = UserLibrary.query.filter_by(id_libro=book.id_libro).first()
             
             if has_reviews or in_libraries:
                 books_with_dependencies.append({
-                    'id_libros': book.id_libros,
+                    'id_libro': book.id_libro,
                     'titulo_libro': book.titulo_libro,
                     'tiene_resenas': has_reviews is not None,
                     'en_bibliotecas': in_libraries is not None
@@ -500,11 +500,11 @@ def force_delete_author(author_id):
         # Eliminar dependencias primero
         for book in author_books:
             # Eliminar reseñas de este libro
-            reviews_deleted = Rating.query.filter_by(id_libro=book.id_libros).delete()
+            reviews_deleted = Rating.query.filter_by(id_libro=book.id_libro).delete()
             total_resenas += reviews_deleted
             
             # Eliminar de bibliotecas de usuarios
-            libraries_deleted = UserLibrary.query.filter_by(id_libro=book.id_libros).delete()
+            libraries_deleted = UserLibrary.query.filter_by(id_libro=book.id_libro).delete()
             total_en_bibliotecas += libraries_deleted
             
             # Eliminar el libro

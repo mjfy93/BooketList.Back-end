@@ -18,7 +18,6 @@ class Author(db.Model):
         onupdate=datetime.utcnow
     )
     
-    # Relación con libros
     libros: Mapped[List["Book"]] = relationship(back_populates="autor")
     
     def serialize(self) -> Dict[str, Any]:
