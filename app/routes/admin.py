@@ -157,7 +157,8 @@ def admin_get_all_users():
             return unauthorized('No tiene permiso para ver usuarios')
         
         users = User.query.all()
-        return jsonify([user.serialize_public() for user in users]), 200
+        # ✅ CORREGIR: Usar serialize() en lugar de serialize_admin()
+        return jsonify([user.serialize() for user in users]), 200
     
     except Exception as e:
         return internal_error(str(e))
@@ -206,6 +207,138 @@ def admin_toggle_user_status(user_id):  # <- Agregar user_id aquí
         return internal_error(str(e))
     except Exception as e:
         db.session.rollback()
+        return internal_error(str(e))
+
+@admin_bp.route('/admin/users/<int:user_id>/reviews', methods=['GET'])
+@jwt_required()
+def admin_get_user_reviews(user_id):
+    """Obtener todas las reseñas de un usuario específico"""
+    try:
+        current_admin_id = get_jwt_identity()
+        current_admin = Admin.query.get(current_admin_id)
+
+        if not current_admin:
+            return unauthorized('No tiene permiso para ver reseñas de usuarios')
+        
+        user = User.query.get_or_404(user_id)
+        
+        reviews = Rating.query.filter_by(id_usuario=user_id).all()
+        
+        reviews_data = []
+        for review in reviews:
+            book = Book.query.get(review.id_libro)
+            reviews_data.append({
+                'id_calificacion': review.id_calificacion,
+                'book': {
+                    'id_libros': book.id_libros if book else None,
+                    'titulo_libro': book.titulo_libro if book else 'Libro no encontrado',
+                    'autor': f"{book.autor.nombre_autor} {book.autor.apellido_autor}" if book and book.autor else 'Autor desconocido'
+                },
+                'calificacion': review.calificacion,
+                'resena': review.resena,
+                'created_at': review.created_at.isoformat() if review.created_at else None,
+                'updated_at': review.updated_at.isoformat() if review.updated_at else None
+            })
+        
+        return jsonify({
+            'user_id': user_id,
+            'user_name': f"{user.nombre_usuario} {user.apellido_usuario}",
+            'total_reviews': len(reviews_data),
+            'reviews': reviews_data
+        }), 200
+    
+    except Exception as e:
+        return internal_error(str(e))
+
+@admin_bp.route('/admin/users/<int:user_id>/library', methods=['GET'])
+@jwt_required()
+def admin_get_user_library(user_id):
+    """Obtener toda la biblioteca de un usuario específico"""
+    try:
+        current_admin_id = get_jwt_identity()
+        current_admin = Admin.query.get(current_admin_id)
+
+        if not current_admin:
+            return unauthorized('No tiene permiso para ver bibliotecas de usuarios')
+        
+        user = User.query.get_or_404(user_id)
+        
+        library_items = UserLibrary.query.filter_by(id_usuario=user_id).all()
+        
+        library_data = []
+        for item in library_items:
+            book = Book.query.get(item.id_libro)
+            if book:
+                library_data.append({
+                    'id_biblioteca': item.id_biblioteca,
+                    'book': {
+                        'id_libros': book.id_libros,
+                        'titulo_libro': book.titulo_libro,
+                        'autor': f"{book.autor.nombre_autor} {book.autor.apellido_autor}" if book.autor else 'Autor desconocido',
+                        'genero_libro': book.genero_libro,
+                        'enlace_portada_libro': book.enlace_portada_libro
+                    },
+                    'estado_lectura': item.estado_lectura,
+                    'added_at': item.created_at.isoformat() if item.created_at else None
+                })
+        
+        # Estadísticas por estado de lectura
+        stats = {
+            'total_books': len(library_data),
+            'quiero_leer': len([item for item in library_data if item['estado_lectura'] == 'quiero_leer']),
+            'leyendo': len([item for item in library_data if item['estado_lectura'] == 'leyendo']),
+            'leido': len([item for item in library_data if item['estado_lectura'] == 'leido'])
+        }
+        
+        return jsonify({
+            'user_id': user_id,
+            'user_name': f"{user.nombre_usuario} {user.apellido_usuario}",
+            'stats': stats,
+            'library': library_data
+        }), 200
+    
+    except Exception as e:
+        return internal_error(str(e))
+
+@admin_bp.route('/admin/users/<int:user_id>/stats', methods=['GET'])
+@jwt_required()
+def admin_get_user_stats(user_id):
+    """Obtener estadísticas completas de un usuario"""
+    try:
+        current_admin_id = get_jwt_identity()
+        current_admin = Admin.query.get(current_admin_id)
+
+        if not current_admin:
+            return unauthorized('No tiene permiso para ver estadísticas de usuarios')
+        
+        user = User.query.get_or_404(user_id)
+        
+        # Contar reseñas
+        total_reviews = Rating.query.filter_by(id_usuario=user_id).count()
+        
+        # Contar libros en biblioteca por estado
+        library_stats = db.session.query(
+            UserLibrary.estado_lectura,
+            func.count(UserLibrary.id_biblioteca).label('count')
+        ).filter_by(id_usuario=user_id).group_by(UserLibrary.estado_lectura).all()
+        
+        stats_dict = {'quiero_leer': 0, 'leyendo': 0, 'leido': 0}
+        for estado, count in library_stats:
+            stats_dict[estado] = count
+        
+        total_books = sum(stats_dict.values())
+        
+        return jsonify({
+            'user_id': user_id,
+            'user_name': f"{user.nombre_usuario} {user.apellido_usuario}",
+            'stats': {
+                'total_books': total_books,
+                'total_reviews': total_reviews,
+                'reading_status': stats_dict
+            }
+        }), 200
+    
+    except Exception as e:
         return internal_error(str(e))
 
 # ===== AUTHOR MANAGEMENT =====
@@ -342,7 +475,7 @@ def admin_update_author(author_id):
 @admin_bp.route('/admin/authors/<int:author_id>/delete', methods=['DELETE'])
 @jwt_required()
 def admin_delete_author(author_id):
-    """Eliminar un autor"""
+    """Eliminar un autor y todos sus libros relacionados"""
     try:
         current_admin_id = get_jwt_identity()
         current_admin = Admin.query.get(current_admin_id)
@@ -352,14 +485,22 @@ def admin_delete_author(author_id):
         
         author = Author.query.get_or_404(author_id)
 
-        if author.libros:
-            return conflict('No se puede eliminar un autor que tiene libros asociados')
+        # Eliminar en cascada manualmente
+        # Primero eliminar todos los libros del autor y sus dependencias
+        for libro in author.libros:
+            # Eliminar calificaciones/reseñas de este libro
+            Rating.query.filter_by(id_libro=libro.id_libros).delete()
+            # Eliminar de bibliotecas de usuarios
+            UserLibrary.query.filter_by(id_libro=libro.id_libros).delete()
+            # Finalmente eliminar el libro
+            db.session.delete(libro)
         
+        # Ahora eliminar el autor
         db.session.delete(author)
         db.session.commit()
 
         return jsonify({
-            'message': 'Autor eliminado exitosamente'
+            'message': 'Autor y todos sus libros eliminados exitosamente'
         }), 200
     
     except Exception as e:
@@ -370,46 +511,49 @@ def admin_delete_author(author_id):
 @admin_bp.route('/admin/books/create', methods=['POST'])
 @jwt_required()
 def admin_create_book():
-    """Crear un nuevo libro"""
     try:
         current_admin_id = get_jwt_identity()
         current_admin = Admin.query.get(current_admin_id)
 
         if not current_admin:
-            return unauthorized('No tiene permiso para agregar libros')
+            return unauthorized('No tiene permiso para crear libros')
         
         data = request.get_json()
-
+        
+        # Validar campos requeridos
         required_fields = ['titulo_libro', 'id_autor', 'genero_libro']
         for field in required_fields:
-            if not data.get(field):
+            if field not in data or not data[field]:
                 return bad_request(f'El campo {field} es requerido')
-            
-        author = Author.query.get(data['id_autor'])
-        if not author:
-            return not_found('Autor no encontrado')
         
-        book = Book(
+        # ✅ CORREGIR: NO incluir created_at y updated_at
+        nuevo_libro = Book(
             titulo_libro=data['titulo_libro'],
             id_autor=data['id_autor'],
             genero_libro=data['genero_libro'],
             descripcion_libros=data.get('descripcion_libros', ''),
-            enlace_portada_libro=data.get('enlace_portada_libro', ''),
-            enlace_asin_libro=data.get('enlace_asin_libro', '')
+            enlace_asin_libro=data.get('enlace_asin_libro', ''),
+            enlace_portada_libro=data.get('enlace_portada_libro', '')
+            
         )
-
-        db.session.add(book)
+        
+        db.session.add(nuevo_libro)
         db.session.commit()
-
+        
         return jsonify({
-            'message': 'Libro agregado exitosamente',
-            'book': book.serialize()
+            'message': 'Libro creado exitosamente',
+            'libro': nuevo_libro.serialize()
         }), 201
-    
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error al crear libro: {str(e)}")  # ✅ Debug
+        return internal_error(str(e))
+        
     except Exception as e:
         db.session.rollback()
         return internal_error(str(e))
-
+    
 @admin_bp.route('/admin/books/list', methods=['GET'])
 @jwt_required()
 def admin_get_all_books():
@@ -466,7 +610,7 @@ def admin_update_book(book_id):
 @admin_bp.route('/admin/books/<int:book_id>/delete', methods=['DELETE'])
 @jwt_required()
 def admin_delete_book(book_id):
-    """Eliminar un libro"""
+    """Eliminar un libro y todas sus dependencias"""
     try:
         current_admin_id = get_jwt_identity()
         current_admin = Admin.query.get(current_admin_id)
@@ -476,16 +620,24 @@ def admin_delete_book(book_id):
         
         book = Book.query.get_or_404(book_id)
 
+        # Eliminar todas las calificaciones/reseñas del libro
+        Rating.query.filter_by(id_libro=book_id).delete()
+        
+        # Eliminar de todas las bibliotecas de usuarios
+        UserLibrary.query.filter_by(id_libro=book_id).delete()
+        
+        # Finalmente eliminar el libro
         db.session.delete(book)
         db.session.commit()
 
         return jsonify({
-            'message': 'Libro eliminado exitosamente'
+            'message': 'Libro y todas sus dependencias eliminados exitosamente'
         }), 200
     
     except Exception as e:
         db.session.rollback()
         return internal_error(str(e))
+
 
 # ===== DASHBOARD & STATISTICS =====
 @admin_bp.route('/admin/dashboard/overview', methods=['GET'])

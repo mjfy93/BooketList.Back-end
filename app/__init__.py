@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from app.database import db, migrate
@@ -16,21 +16,30 @@ def create_app():
     print(f"🔑 SECRET_KEY cargada: {'✅' if app.config['SECRET_KEY'] else '❌'}")
     print(f"🗄️ DATABASE_URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
     
-    # ✅ CONFIGURACIÓN CORS CORREGIDA
+    # ✅ CONFIGURACIÓN CORS CORREGIDA - SIN DUPLICACIONES
     CORS(app, 
-         resources={
-             r"/api/*": {
-                 "origins": [
-                     "http://localhost:5173", 
-                     "http://127.0.0.1:5173",
-                     "http://localhost:3000",
-                     "http://127.0.0.1:3000"
-                 ],
-                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-                 "allow_headers": ["Content-Type", "Authorization"],
-                 "supports_credentials": True
-             }
-         })
+         origins=[
+             "http://localhost:5173", 
+             "http://127.0.0.1:5173",
+             "http://localhost:3000",
+             "http://127.0.0.1:3000"
+         ],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+         allow_headers=["Content-Type", "Authorization"],
+         supports_credentials=True)
+    
+    # ✅ ELIMINAMOS EL @app.after_request que causa la duplicación
+    # Flask-CORS ya maneja los headers automáticamente
+    
+    # Solo mantener el manejo de OPTIONS si es necesario
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            from flask import jsonify
+            response = jsonify({'status': 'preflight'})
+            response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+            return response
     
     # Inicializar extensiones
     db.init_app(app)
