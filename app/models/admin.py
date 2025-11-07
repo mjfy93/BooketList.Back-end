@@ -23,10 +23,11 @@ class Admin(db.Model):
         onupdate=func.now()
     )
 
-    def __init__(self, nombre_admin: str, email_admin: str, password_admin: str):
+    def __init__(self, nombre_admin: str, email_admin: str, password_admin: str, is_active: bool=True):
         self.nombre_admin = nombre_admin
         self.email_admin = email_admin
         self.password_admin = generate_password_hash(password_admin)
+        self.is_active = is_active
 
     def set_password(self, password: str) -> None:
         self.password_admin = generate_password_hash(password)
