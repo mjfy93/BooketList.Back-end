@@ -209,6 +209,138 @@ def admin_toggle_user_status(user_id):  # <- Agregar user_id aquí
         db.session.rollback()
         return internal_error(str(e))
 
+@admin_bp.route('/admin/users/<int:user_id>/reviews', methods=['GET'])
+@jwt_required()
+def admin_get_user_reviews(user_id):
+    """Obtener todas las reseñas de un usuario específico"""
+    try:
+        current_admin_id = get_jwt_identity()
+        current_admin = Admin.query.get(current_admin_id)
+
+        if not current_admin:
+            return unauthorized('No tiene permiso para ver reseñas de usuarios')
+        
+        user = User.query.get_or_404(user_id)
+        
+        reviews = Rating.query.filter_by(id_usuario=user_id).all()
+        
+        reviews_data = []
+        for review in reviews:
+            book = Book.query.get(review.id_libro)
+            reviews_data.append({
+                'id_calificacion': review.id_calificacion,
+                'book': {
+                    'id_libros': book.id_libros if book else None,
+                    'titulo_libro': book.titulo_libro if book else 'Libro no encontrado',
+                    'autor': f"{book.autor.nombre_autor} {book.autor.apellido_autor}" if book and book.autor else 'Autor desconocido'
+                },
+                'calificacion': review.calificacion,
+                'resena': review.resena,
+                'created_at': review.created_at.isoformat() if review.created_at else None,
+                'updated_at': review.updated_at.isoformat() if review.updated_at else None
+            })
+        
+        return jsonify({
+            'user_id': user_id,
+            'user_name': f"{user.nombre_usuario} {user.apellido_usuario}",
+            'total_reviews': len(reviews_data),
+            'reviews': reviews_data
+        }), 200
+    
+    except Exception as e:
+        return internal_error(str(e))
+
+@admin_bp.route('/admin/users/<int:user_id>/library', methods=['GET'])
+@jwt_required()
+def admin_get_user_library(user_id):
+    """Obtener toda la biblioteca de un usuario específico"""
+    try:
+        current_admin_id = get_jwt_identity()
+        current_admin = Admin.query.get(current_admin_id)
+
+        if not current_admin:
+            return unauthorized('No tiene permiso para ver bibliotecas de usuarios')
+        
+        user = User.query.get_or_404(user_id)
+        
+        library_items = UserLibrary.query.filter_by(id_usuario=user_id).all()
+        
+        library_data = []
+        for item in library_items:
+            book = Book.query.get(item.id_libro)
+            if book:
+                library_data.append({
+                    'id_biblioteca': item.id_biblioteca,
+                    'book': {
+                        'id_libros': book.id_libros,
+                        'titulo_libro': book.titulo_libro,
+                        'autor': f"{book.autor.nombre_autor} {book.autor.apellido_autor}" if book.autor else 'Autor desconocido',
+                        'genero_libro': book.genero_libro,
+                        'enlace_portada_libro': book.enlace_portada_libro
+                    },
+                    'estado_lectura': item.estado_lectura,
+                    'added_at': item.created_at.isoformat() if item.created_at else None
+                })
+        
+        # Estadísticas por estado de lectura
+        stats = {
+            'total_books': len(library_data),
+            'quiero_leer': len([item for item in library_data if item['estado_lectura'] == 'quiero_leer']),
+            'leyendo': len([item for item in library_data if item['estado_lectura'] == 'leyendo']),
+            'leido': len([item for item in library_data if item['estado_lectura'] == 'leido'])
+        }
+        
+        return jsonify({
+            'user_id': user_id,
+            'user_name': f"{user.nombre_usuario} {user.apellido_usuario}",
+            'stats': stats,
+            'library': library_data
+        }), 200
+    
+    except Exception as e:
+        return internal_error(str(e))
+
+@admin_bp.route('/admin/users/<int:user_id>/stats', methods=['GET'])
+@jwt_required()
+def admin_get_user_stats(user_id):
+    """Obtener estadísticas completas de un usuario"""
+    try:
+        current_admin_id = get_jwt_identity()
+        current_admin = Admin.query.get(current_admin_id)
+
+        if not current_admin:
+            return unauthorized('No tiene permiso para ver estadísticas de usuarios')
+        
+        user = User.query.get_or_404(user_id)
+        
+        # Contar reseñas
+        total_reviews = Rating.query.filter_by(id_usuario=user_id).count()
+        
+        # Contar libros en biblioteca por estado
+        library_stats = db.session.query(
+            UserLibrary.estado_lectura,
+            func.count(UserLibrary.id_biblioteca).label('count')
+        ).filter_by(id_usuario=user_id).group_by(UserLibrary.estado_lectura).all()
+        
+        stats_dict = {'quiero_leer': 0, 'leyendo': 0, 'leido': 0}
+        for estado, count in library_stats:
+            stats_dict[estado] = count
+        
+        total_books = sum(stats_dict.values())
+        
+        return jsonify({
+            'user_id': user_id,
+            'user_name': f"{user.nombre_usuario} {user.apellido_usuario}",
+            'stats': {
+                'total_books': total_books,
+                'total_reviews': total_reviews,
+                'reading_status': stats_dict
+            }
+        }), 200
+    
+    except Exception as e:
+        return internal_error(str(e))
+
 # ===== AUTHOR MANAGEMENT =====
 @admin_bp.route('/admin/authors/create', methods=['POST'])
 @jwt_required()
