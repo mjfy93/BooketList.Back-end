@@ -41,5 +41,6 @@ class User(db.Model):
             "nombre_usuario": self.nombre_usuario,
             "apellido_usuario": self.apellido_usuario,
             "is_active": self.is_active,
+            "email_usuario": self.email_usuario,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }

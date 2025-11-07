@@ -14,14 +14,18 @@ class Book(db.Model):
     descripcion_libros: Mapped[str] = mapped_column(Text, nullable=False)
     enlace_asin_libro: Mapped[str] = mapped_column(String(100), nullable=False)
     enlace_portada_libro: Mapped[str] = mapped_column(String(500), nullable=False)
+    
+    # ✅ CAMBIAR: Usar default en lugar de server_default para SQLite
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now()
+        DateTime,  # Quitar timezone=True para SQLite
+        default=datetime.utcnow,
+        nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now()
+        DateTime,  # Quitar timezone=True para SQLite
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
     )
 
     calificaciones: Mapped[List["Rating"]] = relationship(back_populates="libro")
@@ -30,7 +34,7 @@ class Book(db.Model):
 
     def serialize(self) -> Dict[str, Any]:
         return {
-        "id_libros": self.id_libros,
+            "id_libros": self.id_libros,
             "titulo_libro": self.titulo_libro,
             "id_autor": self.id_autor,
             "autor": self.autor.serialize() if self.autor else None,

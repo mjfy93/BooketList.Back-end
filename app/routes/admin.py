@@ -157,7 +157,8 @@ def admin_get_all_users():
             return unauthorized('No tiene permiso para ver usuarios')
         
         users = User.query.all()
-        return jsonify([user.serialize_public() for user in users]), 200
+        # ✅ CORREGIR: Usar serialize() en lugar de serialize_admin()
+        return jsonify([user.serialize() for user in users]), 200
     
     except Exception as e:
         return internal_error(str(e))
@@ -342,7 +343,7 @@ def admin_update_author(author_id):
 @admin_bp.route('/admin/authors/<int:author_id>/delete', methods=['DELETE'])
 @jwt_required()
 def admin_delete_author(author_id):
-    """Eliminar un autor"""
+    """Eliminar un autor y todos sus libros relacionados"""
     try:
         current_admin_id = get_jwt_identity()
         current_admin = Admin.query.get(current_admin_id)
@@ -352,14 +353,22 @@ def admin_delete_author(author_id):
         
         author = Author.query.get_or_404(author_id)
 
-        if author.libros:
-            return conflict('No se puede eliminar un autor que tiene libros asociados')
+        # Eliminar en cascada manualmente
+        # Primero eliminar todos los libros del autor y sus dependencias
+        for libro in author.libros:
+            # Eliminar calificaciones/reseñas de este libro
+            Rating.query.filter_by(id_libro=libro.id_libros).delete()
+            # Eliminar de bibliotecas de usuarios
+            UserLibrary.query.filter_by(id_libro=libro.id_libros).delete()
+            # Finalmente eliminar el libro
+            db.session.delete(libro)
         
+        # Ahora eliminar el autor
         db.session.delete(author)
         db.session.commit()
 
         return jsonify({
-            'message': 'Autor eliminado exitosamente'
+            'message': 'Autor y todos sus libros eliminados exitosamente'
         }), 200
     
     except Exception as e:
@@ -370,46 +379,49 @@ def admin_delete_author(author_id):
 @admin_bp.route('/admin/books/create', methods=['POST'])
 @jwt_required()
 def admin_create_book():
-    """Crear un nuevo libro"""
     try:
         current_admin_id = get_jwt_identity()
         current_admin = Admin.query.get(current_admin_id)
 
         if not current_admin:
-            return unauthorized('No tiene permiso para agregar libros')
+            return unauthorized('No tiene permiso para crear libros')
         
         data = request.get_json()
-
+        
+        # Validar campos requeridos
         required_fields = ['titulo_libro', 'id_autor', 'genero_libro']
         for field in required_fields:
-            if not data.get(field):
+            if field not in data or not data[field]:
                 return bad_request(f'El campo {field} es requerido')
-            
-        author = Author.query.get(data['id_autor'])
-        if not author:
-            return not_found('Autor no encontrado')
         
-        book = Book(
+        # ✅ CORREGIR: NO incluir created_at y updated_at
+        nuevo_libro = Book(
             titulo_libro=data['titulo_libro'],
             id_autor=data['id_autor'],
             genero_libro=data['genero_libro'],
             descripcion_libros=data.get('descripcion_libros', ''),
-            enlace_portada_libro=data.get('enlace_portada_libro', ''),
-            enlace_asin_libro=data.get('enlace_asin_libro', '')
+            enlace_asin_libro=data.get('enlace_asin_libro', ''),
+            enlace_portada_libro=data.get('enlace_portada_libro', '')
+            
         )
-
-        db.session.add(book)
+        
+        db.session.add(nuevo_libro)
         db.session.commit()
-
+        
         return jsonify({
-            'message': 'Libro agregado exitosamente',
-            'book': book.serialize()
+            'message': 'Libro creado exitosamente',
+            'libro': nuevo_libro.serialize()
         }), 201
-    
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error al crear libro: {str(e)}")  # ✅ Debug
+        return internal_error(str(e))
+        
     except Exception as e:
         db.session.rollback()
         return internal_error(str(e))
-
+    
 @admin_bp.route('/admin/books/list', methods=['GET'])
 @jwt_required()
 def admin_get_all_books():
@@ -466,7 +478,7 @@ def admin_update_book(book_id):
 @admin_bp.route('/admin/books/<int:book_id>/delete', methods=['DELETE'])
 @jwt_required()
 def admin_delete_book(book_id):
-    """Eliminar un libro"""
+    """Eliminar un libro y todas sus dependencias"""
     try:
         current_admin_id = get_jwt_identity()
         current_admin = Admin.query.get(current_admin_id)
@@ -476,16 +488,24 @@ def admin_delete_book(book_id):
         
         book = Book.query.get_or_404(book_id)
 
+        # Eliminar todas las calificaciones/reseñas del libro
+        Rating.query.filter_by(id_libro=book_id).delete()
+        
+        # Eliminar de todas las bibliotecas de usuarios
+        UserLibrary.query.filter_by(id_libro=book_id).delete()
+        
+        # Finalmente eliminar el libro
         db.session.delete(book)
         db.session.commit()
 
         return jsonify({
-            'message': 'Libro eliminado exitosamente'
+            'message': 'Libro y todas sus dependencias eliminados exitosamente'
         }), 200
     
     except Exception as e:
         db.session.rollback()
         return internal_error(str(e))
+
 
 # ===== DASHBOARD & STATISTICS =====
 @admin_bp.route('/admin/dashboard/overview', methods=['GET'])
