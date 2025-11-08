@@ -30,7 +30,7 @@ def create_app():
                         FRONTEND_URL,
                         
                     ],
-                    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                    "methods": ["GET", "POST", "PUT", "DELETE", "PATCH","OPTIONS"],
                     "allow_headers": ["Content-Type", "Authorization" ],
                     "supports_credentials": True
                 }
