@@ -15,6 +15,7 @@ def create_app():
     
     print(f"🔑 SECRET_KEY cargada: {'✅' if app.config['SECRET_KEY'] else '❌'}")
     print(f"🗄️ DATABASE_URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
     
     # ✅ CONFIGURACIÓN CORS CORREGIDA - SIN DUPLICACIONES
     CORS(app, 
@@ -25,7 +26,7 @@ def create_app():
                         "http://127.0.0.1:5173",
                         "http://localhost:3000",
                         "http://127.0.0.1:3000",
-                        "https://front-end-seven-swart.vercel.app"
+                        FRONTEND_URL,
                         
                     ],
                     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
