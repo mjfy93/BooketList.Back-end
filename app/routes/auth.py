@@ -12,7 +12,7 @@ def register():
     try:
         data = request.get_json()
 
-        # ✅ Usar los campos que envía el frontend
+        # ✅ Usar los mismos campos que en tu JSON de Postman
         if not data.get('email') or not data.get('password') or not data.get('username'):
             return bad_request('Correo electrónico, nombre de usuario y contraseña son requeridos')
         

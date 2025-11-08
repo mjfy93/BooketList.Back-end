@@ -37,10 +37,17 @@ def run_migrations():
     try:
         print("🔄 Running database migrations...")
         
+        # ✅ NEW: Check for FORCE_RESEED - if true, drop all tables
+        FORCE_RESEED = os.getenv('FORCE_RESEED', 'false').lower() == 'true'
+        
+        if FORCE_RESEED:
+            print("🔄 FORCE_RESEED enabled - dropping all tables...")
+            db.drop_all()
+            print("✅ Tables dropped")
+        
         # Check if alembic_version table exists
         if not table_exists('alembic_version'):
             print("📌 Initializing migration tracking...")
-            # If migrations folder exists but DB has no history, stamp it
             try:
                 stamp()
                 print("✅ Migration tracking initialized")
@@ -48,20 +55,19 @@ def run_migrations():
                 print(f"⚠️  Could not stamp database: {e}")
         
         # Run migrations
-        upgrade()
-        print("✅ Migrations completed successfully")
-        return True
-    except Exception as e:
-        print(f"❌ Migration error: {e}")
-        # If migrations fail, try creating tables directly
-        print("🔄 Attempting to create tables directly...")
         try:
+            upgrade()
+            print("✅ Migrations completed successfully")
+        except Exception as e:
+            print(f"⚠️  Migration error: {e}")
+            print("🔄 Creating tables directly instead...")
             db.create_all()
             print("✅ Tables created successfully")
-            return True
-        except Exception as e2:
-            print(f"❌ Could not create tables: {e2}")
-            return False
+        
+        return True
+    except Exception as e:
+        print(f"❌ Migration/table creation error: {e}")
+        return False
 
 def seed_database():
     """Import and run the seed script"""
@@ -93,12 +99,18 @@ def main():
         
         # Step 2: Check if database needs seeding
         print("\n🔍 Step 2: Checking Database State")
-        if is_database_empty():
-            print("📭 Database is empty - proceeding with seeding")
+        
+        # Check for FORCE_RESEED environment variable
+        FORCE_RESEED = os.getenv('FORCE_RESEED', 'false').lower() == 'true'
+        
+        if is_database_empty() or FORCE_RESEED:
+            if FORCE_RESEED:
+                print("🔄 FORCE_RESEED enabled - reseeding database")
+            else:
+                print("📭 Database is empty - proceeding with seeding")
             
             if not seed_database():
                 print("⚠️  Seeding failed, but database structure is ready")
-                # Don't exit with error - structure is ready even if seeding failed
         else:
             print("✅ Database already contains data - skipping seed")
         

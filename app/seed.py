@@ -31,7 +31,8 @@ def seed_database():
         admin = Admin(
             nombre_admin="Administrador Principal",
             email_admin="admin@booketlist.com",
-            password_admin="admin123"
+            password_admin="admin123",
+            is_active=True
         )
         db.session.add(admin)
         db.session.commit()
