@@ -13,23 +13,23 @@ def register():
         data = request.get_json()
 
         # ✅ Usar los mismos campos que en tu JSON de Postman
-        if not data.get('email_usuario') or not data.get('password_usuario') or not data.get('nombre_usuario'):
+        if not data.get('email') or not data.get('password') or not data.get('username'):
             return bad_request('Correo electrónico, nombre de usuario y contraseña son requeridos')
         
-        # ✅ Verificar si el email ya existe (usando el campo correcto)
-        if User.query.filter_by(email_usuario=data['email_usuario']).first():
+        # ✅ Verificar si el email ya existe
+        if User.query.filter_by(email_usuario=data['email']).first():
             return conflict('El correo electrónico ya está registrado')
         
         # ✅ Verificar si el nombre de usuario ya existe
-        if User.query.filter_by(nombre_usuario=data['nombre_usuario']).first():
+        if User.query.filter_by(nombre_usuario=data['username']).first():
             return conflict('El nombre de usuario ya existe')
         
         # ✅ Crear usuario con los campos correctos de tu modelo
         usuario = User(
-            nombre_usuario=data['nombre_usuario'],
-            apellido_usuario=data.get('apellido_usuario', ''),
-            email_usuario=data['email_usuario'],
-            password_usuario=generate_password_hash(data['password_usuario']),
+            nombre_usuario=data['username'],
+            apellido_usuario=data.get('last_name', ''),
+            email_usuario=data['email'],
+            password_usuario=generate_password_hash(data['password']),
             is_active=True
         )
 
