@@ -390,3 +390,51 @@ def update_book_rating(book_id):
     except Exception as e:
         db.session.rollback()
         return internal_error(str(e))
+    
+@library_bp.route('/my-library/books/<int:book_id>/complete-remove', methods=['DELETE'])
+@jwt_required()
+def completely_remove_book_from_library(book_id):
+    """
+    Eliminar completamente un libro de la biblioteca del usuario
+    - Elimina de UserLibrary (si existe)
+    - Elimina de Rating (si existe)
+    - Limpia ambos estados: biblioteca y leído
+    """
+    try:
+        user_id = get_jwt_identity()
+        
+        # Buscar en UserLibrary
+        library_item = UserLibrary.query.filter_by(
+            id_usuario=user_id,
+            id_libro=book_id
+        ).first()
+        
+        # Buscar en Rating (libros leídos)
+        rating_item = Rating.query.filter_by(
+            id_usuario=user_id,
+            id_libro=book_id
+        ).first()
+        
+        # Verificar que al menos uno existe
+        if not library_item and not rating_item:
+            return not_found('Libro no encontrado en tu biblioteca personal')
+        
+        # Eliminar de UserLibrary si existe
+        if library_item:
+            db.session.delete(library_item)
+            print(f"📚 Libro removido de UserLibrary para usuario {user_id}")
+        
+        # Eliminar de Rating si existe
+        if rating_item:
+            db.session.delete(rating_item)
+            print(f"⭐ Reseña removida de Rating para usuario {user_id}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Libro y reseña eliminados completamente de tu biblioteca'
+        }), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        return internal_error(str(e))
